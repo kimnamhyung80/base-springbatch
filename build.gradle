@@ -1,0 +1,123 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.2'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.framework'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = '17'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // ═══════════════════════════════════════════════════════════════
+    // Spring Boot Starters
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Spring Batch
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Spring Security (Optional - JWT 기반)
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    
+    // JWT (jjwt 0.12.3)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
+
+    // ═══════════════════════════════════════════════════════════════
+    // MyBatis
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Quartz Scheduler (배치 스케줄링)
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.springframework.boot:spring-boot-starter-quartz'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Database Drivers
+    // ═══════════════════════════════════════════════════════════════
+    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly 'com.h2database:h2'
+    // Oracle 사용 시 주석 해제
+    // runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Swagger / OpenAPI
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Lombok & MapStruct
+    // ═══════════════════════════════════════════════════════════════
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Jasypt (설정 암호화)
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Commons (유틸리티)
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'org.apache.commons:commons-lang3:3.14.0'
+    implementation 'commons-io:commons-io:2.15.1'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Micrometer (메트릭)
+    // ═══════════════════════════════════════════════════════════════
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // ═══════════════════════════════════════════════════════════════
+    // Test Dependencies
+    // ═══════════════════════════════════════════════════════════════
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.batch:spring-batch-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Build Info
+// ═══════════════════════════════════════════════════════════════
+springBoot {
+    buildInfo()
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Jar 설정
+// ═══════════════════════════════════════════════════════════════
+bootJar {
+    archiveFileName = 'springbatch.jar'
+}

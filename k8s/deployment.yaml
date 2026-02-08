@@ -1,0 +1,183 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kubernetes Deployment
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springbatch
+  namespace: batch
+  labels:
+    app: springbatch
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: springbatch
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: springbatch
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/api/actuator/prometheus"
+    spec:
+      # 서비스 계정
+      serviceAccountName: springbatch-sa
+      
+      # 보안 컨텍스트
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      # 컨테이너
+      containers:
+        - name: springbatch
+          image: springbatch:1.0.0
+          imagePullPolicy: IfNotPresent
+          
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          
+          # 환경변수 (ConfigMap + Secret)
+          envFrom:
+            - configMapRef:
+                name: springbatch-config
+            - secretRef:
+                name: springbatch-secret
+          
+          # 리소스 제한
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          
+          # Liveness Probe (컨테이너 생존 확인)
+          livenessProbe:
+            httpGet:
+              path: /api/actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Readiness Probe (트래픽 수신 준비 확인)
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Startup Probe (초기 시작 확인)
+          startupProbe:
+            httpGet:
+              path: /api/actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 30
+          
+          # 볼륨 마운트
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+            - name: output
+              mountPath: /app/output
+      
+      # 볼륨
+      volumes:
+        - name: logs
+          emptyDir: {}
+        - name: output
+          persistentVolumeClaim:
+            claimName: springbatch-output-pvc
+      
+      # 노드 선호도 (선택적)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: springbatch
+                topologyKey: kubernetes.io/hostname
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kubernetes Service
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Service
+metadata:
+  name: springbatch-svc
+  namespace: batch
+  labels:
+    app: springbatch
+spec:
+  type: ClusterIP
+  selector:
+    app: springbatch
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kubernetes ServiceAccount
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: springbatch-sa
+  namespace: batch
+  labels:
+    app: springbatch
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kubernetes HorizontalPodAutoscaler
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: springbatch-hpa
+  namespace: batch
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: springbatch
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

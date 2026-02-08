@@ -1,0 +1,135 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kubernetes CronJob for Batch Execution
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: springbatch-sample-job
+  namespace: batch
+  labels:
+    app: springbatch
+    job-type: batch
+spec:
+  # 매일 새벽 2시 실행
+  schedule: "0 2 * * *"
+  
+  # 타임존 (K8s 1.27+)
+  # timeZone: "Asia/Seoul"
+  
+  # 동시 실행 정책
+  concurrencyPolicy: Forbid
+  
+  # 실패 이력 유지 개수
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 5
+  
+  # 시작 기한 (초)
+  startingDeadlineSeconds: 300
+  
+  jobTemplate:
+    spec:
+      # 완료 후 TTL (자동 정리)
+      ttlSecondsAfterFinished: 86400
+      
+      # 백오프 제한
+      backoffLimit: 3
+      
+      template:
+        metadata:
+          labels:
+            app: springbatch
+            job-type: batch
+        spec:
+          restartPolicy: OnFailure
+          
+          containers:
+            - name: batch-runner
+              image: curlimages/curl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # 배치 실행 API 호출
+                  curl -X POST "http://springbatch-svc:8080/api/v1/batch/jobs/run" \
+                    -H "Content-Type: application/json" \
+                    -H "Authorization: Bearer ${JWT_TOKEN}" \
+                    -d '{
+                      "jobName": "sampleJob",
+                      "parameters": {
+                        "date": "'$(date +%Y%m%d)'"
+                      },
+                      "async": false
+                    }'
+              env:
+                - name: JWT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: springbatch-secret
+                      key: BATCH_JWT_TOKEN
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "128Mi"
+
+---
+# ═══════════════════════════════════════════════════════════════════════════════
+# 데이터 정리 CronJob
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: springbatch-cleanup-job
+  namespace: batch
+  labels:
+    app: springbatch
+    job-type: cleanup
+spec:
+  # 매일 새벽 3시 실행
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 5
+  
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400
+      backoffLimit: 3
+      
+      template:
+        metadata:
+          labels:
+            app: springbatch
+            job-type: cleanup
+        spec:
+          restartPolicy: OnFailure
+          
+          containers:
+            - name: cleanup-runner
+              image: curlimages/curl:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  curl -X POST "http://springbatch-svc:8080/api/v1/batch/jobs/run" \
+                    -H "Content-Type: application/json" \
+                    -H "Authorization: Bearer ${JWT_TOKEN}" \
+                    -d '{
+                      "jobName": "dataCleanupJob",
+                      "async": false
+                    }'
+              env:
+                - name: JWT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: springbatch-secret
+                      key: BATCH_JWT_TOKEN
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "200m"
+                  memory: "128Mi"

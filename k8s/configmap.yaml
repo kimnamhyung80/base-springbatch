@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Kubernetes ConfigMap
+# ═══════════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: springbatch-config
+  namespace: batch
+  labels:
+    app: springbatch
+data:
+  # 서버 설정
+  APP_NAME: "springbatch"
+  SERVER_PORT: "8080"
+  
+  # 데이터베이스 (URL은 Service Name 사용)
+  DB_URL: "jdbc:postgresql://postgres-svc:5432/springbatch"
+  DB_DRIVER: "org.postgresql.Driver"
+  JPA_DIALECT: "org.hibernate.dialect.PostgreSQLDialect"
+  JPA_DDL_AUTO: "validate"
+  JPA_SHOW_SQL: "false"
+  
+  # Redis
+  REDIS_HOST: "redis-svc"
+  REDIS_PORT: "6379"
+  
+  # Batch
+  BATCH_INIT_SCHEMA: "always"
+  BATCH_JOB_ENABLED: "false"
+  BATCH_CHUNK_SIZE: "1000"
+  BATCH_PAGE_SIZE: "1000"
+  BATCH_SKIP_LIMIT: "10"
+  BATCH_RETRY_LIMIT: "3"
+  BATCH_LOCK_ENABLED: "true"
+  
+  # Security
+  SECURITY_ENABLED: "true"
+  
+  # Quartz
+  QUARTZ_ENABLED: "true"
+  QUARTZ_STORE_TYPE: "memory"
+  
+  # 로깅
+  LOG_LEVEL_ROOT: "INFO"
+  LOG_LEVEL_APP: "INFO"
+  LOG_LEVEL_BATCH: "INFO"
+  LOG_LEVEL_SQL: "WARN"
+  
+  # Swagger (운영에서는 비활성화)
+  SWAGGER_ENABLED: "false"
+  
+  # H2 Console (운영에서는 비활성화)
+  H2_CONSOLE_ENABLED: "false"

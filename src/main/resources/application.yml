@@ -1,0 +1,262 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Spring Batch Enterprise Framework - 통합 설정
+# ═══════════════════════════════════════════════════════════════════════════════
+# 환경변수 오버라이드: ${ENV_VAR:기본값}
+# K8s ConfigMap/Secret으로 환경변수 주입
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 서버 설정
+# ───────────────────────────────────────────────────────────────────────────────
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 5000
+    threads:
+      max: 200
+      min-spare: 10
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Spring 기본 설정
+# ───────────────────────────────────────────────────────────────────────────────
+spring:
+  application:
+    name: ${APP_NAME:springbatch}
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  
+  main:
+    allow-bean-definition-overriding: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 데이터소스 설정 (기본: H2, 운영: PostgreSQL/Oracle)
+  # ─────────────────────────────────────────────────────────────────────────────
+  datasource:
+    # Primary DataSource (Business DB)
+    url: ${DB_URL:jdbc:h2:mem:springbatch;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    hikari:
+      pool-name: HikariPool-Primary
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN:5}
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 30000
+      leak-detection-threshold: 60000
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # H2 Console (로컬 개발용)
+  # ─────────────────────────────────────────────────────────────────────────────
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+      settings:
+        web-allow-others: false
+        trace: false
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JPA 설정
+  # ─────────────────────────────────────────────────────────────────────────────
+  jpa:
+    database-platform: ${JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:create-drop}
+    show-sql: ${JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+    defer-datasource-initialization: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SQL 초기화
+  # ─────────────────────────────────────────────────────────────────────────────
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:embedded}
+      schema-locations: classpath:sql/schema.sql
+      data-locations: classpath:sql/data.sql
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Spring Batch 설정
+  # ─────────────────────────────────────────────────────────────────────────────
+  batch:
+    job:
+      enabled: ${BATCH_JOB_ENABLED:false}  # 서버 시작 시 자동 실행 비활성화
+    jdbc:
+      initialize-schema: ${BATCH_INIT_SCHEMA:always}
+      isolation-level-for-create: SERIALIZABLE
+      table-prefix: BATCH_
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Redis 설정 (분산 락, 캐시)
+  # ─────────────────────────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Quartz 스케줄러 설정
+  # ─────────────────────────────────────────────────────────────────────────────
+  quartz:
+    job-store-type: ${QUARTZ_STORE_TYPE:memory}
+    auto-startup: ${QUARTZ_ENABLED:true}
+    startup-delay: 10s
+    overwrite-existing-jobs: true
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: BatchScheduler
+            instanceId: AUTO
+          threadPool:
+            threadCount: 5
+          jobStore:
+            misfireThreshold: 60000
+
+# ───────────────────────────────────────────────────────────────────────────────
+# MyBatis 설정
+# ───────────────────────────────────────────────────────────────────────────────
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.framework.springbatch.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+    cache-enabled: true
+    lazy-loading-enabled: true
+
+# ───────────────────────────────────────────────────────────────────────────────
+# JWT 설정
+# ───────────────────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:dGhpcy1pcy1hLXZlcnktbG9uZy1zZWNyZXQta2V5LWZvci1qd3QtYXV0aGVudGljYXRpb24tc3ByaW5nYmF0Y2gtZnJhbWV3b3Jr}
+  access-token-validity: ${JWT_ACCESS_VALIDITY:86400}
+  refresh-token-validity: ${JWT_REFRESH_VALIDITY:604800}
+  issuer: ${JWT_ISSUER:springbatch}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Security 설정
+# ───────────────────────────────────────────────────────────────────────────────
+security:
+  enabled: ${SECURITY_ENABLED:true}
+  whitelist:
+    - /api/v1/auth/**
+    - /api/v1/batch/health
+    - /actuator/**
+    - /swagger-ui/**
+    - /v3/api-docs/**
+    - /h2-console/**
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Batch 프레임워크 설정
+# ───────────────────────────────────────────────────────────────────────────────
+batch:
+  chunk-size: ${BATCH_CHUNK_SIZE:1000}
+  page-size: ${BATCH_PAGE_SIZE:1000}
+  skip-limit: ${BATCH_SKIP_LIMIT:10}
+  retry-limit: ${BATCH_RETRY_LIMIT:3}
+  throttle-limit: ${BATCH_THROTTLE_LIMIT:4}
+  grid-size: ${BATCH_GRID_SIZE:4}
+  
+  # 분산 락 설정
+  lock:
+    enabled: ${BATCH_LOCK_ENABLED:true}
+    timeout: ${BATCH_LOCK_TIMEOUT:60000}
+    prefix: "batch:lock:"
+  
+  # 알림 설정
+  notification:
+    enabled: ${BATCH_NOTIFICATION_ENABLED:false}
+    slack-webhook: ${SLACK_WEBHOOK_URL:}
+    email-enabled: ${EMAIL_NOTIFICATION_ENABLED:false}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Actuator / Prometheus
+# ───────────────────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,batch
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: ${ACTUATOR_HEALTH_DETAILS:when_authorized}
+      probes:
+        enabled: true
+    batch:
+      enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Swagger / OpenAPI
+# ───────────────────────────────────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+  show-actuator: true
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 로깅 설정
+# ───────────────────────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.framework.springbatch: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.batch: ${LOG_LEVEL_BATCH:INFO}
+    org.springframework.jdbc: ${LOG_LEVEL_SQL:DEBUG}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
+    org.hibernate.type.descriptor.sql: ${LOG_LEVEL_SQL_PARAM:TRACE}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{jobName}] [%X{traceId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: ${LOG_FILE_PATH:./logs}/${spring.application.name}.log
+
+# ───────────────────────────────────────────────────────────────────────────────
+# Jasypt 암호화
+# ───────────────────────────────────────────────────────────────────────────────
+jasypt:
+  encryptor:
+    password: ${JASYPT_PASSWORD:springbatch-secret-key}
+    algorithm: PBEWITHHMACSHA512ANDAES_256
+    iv-generator-classname: org.jasypt.iv.RandomIvGenerator
